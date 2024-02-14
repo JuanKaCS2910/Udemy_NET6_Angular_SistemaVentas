@@ -16,7 +16,7 @@ namespace POS.Infrastructure.Persistences.Contexts
         }
 
         public virtual DbSet<BranchOffice> BranchOffices { get; set; } = null!;
-        public virtual DbSet<Category> Businesses { get; set; } = null!;
+        public virtual DbSet<Business> Businesses { get; set; } = null!;
         public virtual DbSet<Category> Categories { get; set; } = null!;
         public virtual DbSet<Client> Clients { get; set; } = null!;
         public virtual DbSet<Department> Departments { get; set; } = null!;

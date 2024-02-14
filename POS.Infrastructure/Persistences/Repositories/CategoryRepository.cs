@@ -20,39 +20,50 @@ namespace POS.Infrastructure.Persistences.Repositories
         public async Task<BaseEntityResponse<Category>> ListCategories(BaseFiltersRequest filters)
         {
             var response = new BaseEntityResponse<Category>();
-            var categories = (from c in _context.Categories
-                              where c.AuditDeleteUser == null && c.AuditDeleteDate == null
-                              select c).AsNoTracking().AsQueryable();
 
-            if (filters.NumFilter is not null && !string.IsNullOrEmpty(filters.TextFilter))
+            try
             {
-                switch (filters.NumFilter)
+                var categories = (from c in _context.Categories
+                                  where c.AuditDeleteUser == null && c.AuditDeleteDate == null
+                                  select c).AsNoTracking().AsQueryable();
+
+                if (filters.NumFilter is not null && !string.IsNullOrEmpty(filters.TextFilter))
                 {
-                    case 1:
-                        categories = categories.Where(x => x.Name!.Contains(filters.TextFilter)); 
-                        break;
-                    case 2:
-                        categories = categories.Where(x => x.Description!.Contains(filters.TextFilter));
-                        break;
-                    default:
-                        break;
+                    switch (filters.NumFilter)
+                    {
+                        case 1:
+                            categories = categories.Where(x => x.Name!.Contains(filters.TextFilter));
+                            break;
+                        case 2:
+                            categories = categories.Where(x => x.Description!.Contains(filters.TextFilter));
+                            break;
+                        default:
+                            break;
+                    }
                 }
-            }
 
-            if (filters.StateFilter is not null)
+                if (filters.StateFilter is not null)
+                {
+                    categories = categories.Where(x => x.State.Equals(filters.StateFilter));
+                }
+
+                if (!string.IsNullOrEmpty(filters.StartDate) && !string.IsNullOrEmpty(filters.EndDate))
+                {
+                    categories = categories.Where(x => x.AuditCreateDate >= Convert.ToDateTime(filters.StartDate) && x.AuditCreateDate <= Convert.ToDateTime(filters.EndDate).AddDays(1));
+                }
+
+                if (filters.Sort is null) filters.Sort = "CategoryId";
+
+                response.TotalRecords = await categories.CountAsync();
+                response.Items = await Ordering(filters, categories, !(bool)filters.Download!).ToListAsync();
+            }
+            catch (Exception ex)
             {
-                categories = categories.Where(x => x.State.Equals(filters.StateFilter));
+
+                throw;
             }
 
-            if (!string.IsNullOrEmpty(filters.StartDate) && !string.IsNullOrEmpty(filters.EndDate))
-            {
-                categories = categories.Where(x => x.AuditCreateDate >= Convert.ToDateTime(filters.StartDate) && x.AuditCreateDate <= Convert.ToDateTime(filters.EndDate).AddDays(1));
-            }
-
-            if (filters.Sort is null) filters.Sort = "CategoryId";
             
-            response.TotalRecords = await categories.CountAsync();
-            response.Items = await Ordering(filters, categories, !(bool)filters.Download!).ToListAsync();
             return response;
 
         }
@@ -101,6 +112,8 @@ namespace POS.Infrastructure.Persistences.Repositories
 
             category!.AuditDeleteUser = 1;
             category.AuditDeleteDate = DateTime.Now;
+
+            _context.Update(category);
 
             var recordsAffected = await _context.SaveChangesAsync();
             return recordsAffected > 0;
